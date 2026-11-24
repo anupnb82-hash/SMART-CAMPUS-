@@ -1,0 +1,61 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Default deny catch-all
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() > 0 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    // User profiles (users can view profiles, own user can edit)
+    match /users/{userId} {
+      allow read: if true;
+      allow create, update: if isValidId(userId) && isOwner(userId) && 
+                            request.resource.data.id == userId;
+    }
+
+    // Facility bookings (publicly viewable schedule, authenticated creation)
+    match /bookings/{bookingId} {
+      allow read: if true;
+      allow create: if isSignedIn() && isValidId(bookingId);
+      allow update: if isSignedIn() && (
+        resource.data.userId == request.auth.uid || 
+        (request.auth.token.email != null && request.auth.token.email.matches('.*admin.*'))
+      );
+      allow delete: if isSignedIn() && resource.data.userId == request.auth.uid;
+    }
+
+    // Rescue Engine waitlist (viewable for queue transparency, authenticated creation)
+    match /waitlist/{waitId} {
+      allow read: if true;
+      allow create: if isSignedIn() && isValidId(waitId);
+      allow update: if isSignedIn() && (
+        resource.data.userId == request.auth.uid || 
+        (request.auth.token.email != null && request.auth.token.email.matches('.*admin.*'))
+      );
+      allow delete: if isSignedIn() && resource.data.userId == request.auth.uid;
+    }
+
+    // Gemini Chat Sessions per user (strictly isolated to owner)
+    match /users/{userId}/chat_sessions/{sessionId} {
+      allow read, write: if isValidId(userId) && isValidId(sessionId) && isOwner(userId);
+
+      match /messages/{messageId} {
+        allow read, write: if isValidId(userId) && isValidId(sessionId) && isValidId(messageId) && isOwner(userId);
+      }
+    }
+  }
+}

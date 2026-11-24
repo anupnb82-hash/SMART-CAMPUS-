@@ -1,0 +1,6 @@
+{
+  "name": "Smart Campus - University Management System",
+  "description": "Comprehensive university campus management platform featuring role-based portals for students, faculty, and administrators, smart resource booking, and the Campus Resource Rescue Engine.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
